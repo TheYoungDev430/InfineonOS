@@ -1,0 +1,196 @@
+import tkinter as tk
+from tkinter import messagebox, Menu, Toplevel, Label, Button, Entry, scrolledtext
+import subprocess
+import os
+import platform
+import psutil
+from time import strftime
+
+PASSWORD = "4"
+
+class TerminalApp(Toplevel):
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("skeepOS Terminal")
+        self.geometry("600x400")
+
+        self.output = scrolledtext.ScrolledText(self, wrap=tk.WORD, state='disabled')
+        self.output.pack(expand=True, fill='both')
+
+        self.input = Entry(self)
+        self.input.pack(fill='x')
+        self.input.bind("<Return>", self.execute_command)
+
+    def write_output(self, text):
+        self.output.configure(state='normal')
+        self.output.insert(tk.END, text + "\n")
+        self.output.configure(state='disabled')
+        self.output.see(tk.END)
+
+    def execute_command(self, event=None):
+        command = self.input.get().strip()
+        self.write_output(f"> {command}")
+        self.input.delete(0, tk.END)
+
+        if command.startswith("echo "):
+            self.write_output(command[5:])
+        elif command == "cpuinfo":
+            info = f"Processor: {platform.processor()}\nCores: {psutil.cpu_count(logical=False)}\nThreads: {psutil.cpu_count(logical=True)}"
+            self.write_output(info)
+        elif command == "open notepad":
+            subprocess.Popen(["notepad.exe"])
+        elif command == "clear":
+            self.output.configure(state='normal')
+            self.output.delete(1.0, tk.END)
+            self.output.configure(state='disabled')
+        elif command == "exit":
+            self.destroy()
+        else:
+            self.write_output("Unknown command. Try: echo, cpuinfo, open notepad, clear, exit")
+
+class SkeepOS:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("skeepOS Simulator")
+        self.root.geometry("800x600")
+        self.root.configure(bg="black")
+        self.show_login_screen()
+
+    def show_login_screen(self):
+        self.clear_window()
+        self.login_frame = tk.Frame(self.root, bg="black")
+        self.login_frame.pack(expand=True)
+
+        self.time_label = tk.Label(self.login_frame, text="", fg="white", bg="black", font=("Arial", 24))
+        self.time_label.pack(pady=20)
+        self.update_time()
+
+        self.root.bind("<Key>", self.show_password_entry)
+
+    def update_time(self):
+        self.time_label.config(text=strftime("%I:%M:%S %p\n%d-%b-%Y"))
+        self.root.after(1000, self.update_time)
+
+    def show_password_entry(self, event=None):
+        self.root.unbind("<Key>")
+        for widget in self.login_frame.winfo_children():
+            widget.destroy()
+
+        tk.Label(self.login_frame, text="Enter Password:", fg="white", bg="black", font=("Arial", 16)).pack(pady=10)
+        self.password_entry = tk.Entry(self.login_frame, show="*", font=("Arial", 18))
+        self.password_entry.pack(pady=10)
+        tk.Button(self.login_frame, text="Login", font=("Arial", 14), command=self.check_password).pack(pady=10)
+
+    def check_password(self):
+        if self.password_entry.get() == PASSWORD:
+            self.show_desktop()
+        else:
+            messagebox.showerror("Error", "Incorrect Password")
+
+    def show_desktop(self):
+        self.clear_window()
+        self.root.configure(bg="lightblue")
+
+        self.desktop_frame = tk.Frame(self.root, bg="lightblue")
+        self.desktop_frame.pack(expand=True, fill="both")
+
+        self.taskbar = tk.Frame(self.root, bg="gray", height=30)
+        self.taskbar.pack(side="bottom", fill="x")
+
+        self.start_button = tk.Button(self.taskbar, text="Start", command=self.show_start_menu)
+        self.start_button.pack(side="left", padx=5)
+
+        self.clock_label = tk.Label(self.taskbar, text="", bg="gray", fg="white")
+        self.clock_label.pack(side="right", padx=10)
+        self.update_clock()
+
+        self.create_desktop_icons()
+
+    def update_clock(self):
+        self.clock_label.config(text=strftime("%I:%M:%S %p | %d-%b-%Y"))
+        self.root.after(1000, self.update_clock)
+
+    def show_start_menu(self):
+        menu = Menu(self.root, tearoff=0)
+        menu.add_command(label="Notepad", command=lambda: subprocess.Popen(["notepad.exe"]))
+        menu.add_command(label="Paint", command=lambda: subprocess.Popen(["mspaint.exe"]))
+        menu.add_command(label="CMD", command=lambda: subprocess.Popen(["cmd.exe"]))
+        menu.add_command(label="Registry Editor", command=lambda: subprocess.Popen(["regedit.exe"]))
+        menu.add_command(label="Microsoft Edge", command=self.open_edge)
+        menu.add_command(label="Calculator", command=lambda: subprocess.Popen(["calc.exe"]))
+        menu.add_command(label="File Explorer", command=self.open_file_explorer)
+        menu.add_command(label="Wallpapers", command=self.open_wallpaper_app)
+        menu.add_command(label="Terminal", command=self.open_terminal)
+        menu.add_command(label="Shutdown", command=self.shutdown_os)
+        menu.post(self.start_button.winfo_rootx(), self.start_button.winfo_rooty() - menu.winfo_reqheight())
+
+    def create_desktop_icons(self):
+        apps = [
+            ("Notepad", lambda: subprocess.Popen(["notepad.exe"]), "Notepad for skeepOS", 50, 50),
+            ("Paint", lambda: subprocess.Popen(["mspaint.exe"]), "Paint for skeepOS", 150, 50),
+            ("CMD", lambda: subprocess.Popen(["cmd.exe"]), "Command Prompt for skeepOS", 250, 50),
+            ("Registry", lambda: subprocess.Popen(["regedit.exe"]), "Registry Editor for skeepOS", 350, 50),
+            ("Edge", self.open_edge, "Edge browser for skeepOS", 450, 50),
+            ("Calculator", lambda: subprocess.Popen(["calc.exe"]), "Calculator for skeepOS", 550, 50),
+            ("Terminal", self.open_terminal, "Terminal for skeepOS", 650, 50)
+        ]
+        for label, func, desc, x, y in apps:
+            icon = tk.Button(self.desktop_frame, text=label, width=10, height=2, command=func)
+            icon.place(x=x, y=y)
+            icon.bind("<Button-3>", lambda e, f=func, d=desc, l=label: self.show_icon_menu(e, f, d, l))
+
+    def show_icon_menu(self, event, func, desc, label):
+        menu = Menu(self.root, tearoff=0)
+        menu.add_command(label=f"Open {label}", command=func)
+        menu.add_command(label="Properties", command=lambda: messagebox.showinfo("Properties", desc))
+        menu.post(event.x_root, event.y_root)
+
+    def open_edge(self):
+        edge_paths = [
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"
+        ]
+        for path in edge_paths:
+            if os.path.exists(path):
+                subprocess.Popen([path])
+                return
+        messagebox.showerror("Error", "Edge not found!")
+
+    def open_file_explorer(self):
+        explorer = Toplevel(self.root)
+        explorer.title("File Explorer")
+        explorer.geometry("400x300")
+        files = ["Documents", "Pictures", "Music", "Videos", "file1.txt", "file2.docx"]
+        for f in files:
+            icon = "📁" if "." not in f else "📄"
+            Label(explorer, text=f"{icon} {f}", font=("Arial", 12)).pack(anchor="w", padx=10, pady=2)
+
+    def open_wallpaper_app(self):
+        wallpaper_window = Toplevel(self.root)
+        wallpaper_window.title("Wallpapers")
+        wallpaper_window.geometry("300x150")
+        Label(wallpaper_window, text="Choose Wallpaper:", font=("Arial", 14)).pack(pady=10)
+        Button(wallpaper_window, text="Wallpaper 1", command=lambda: self.set_wallpaper("lightblue")).pack(pady=5)
+        Button(wallpaper_window, text="Wallpaper 2", command=lambda: self.set_wallpaper("lightgreen")).pack(pady=5)
+
+    def set_wallpaper(self, color):
+        self.root.configure(bg=color)
+        self.desktop_frame.configure(bg=color)
+
+    def open_terminal(self):
+        TerminalApp(self.root)
+
+    def shutdown_os(self):
+        self.clear_window()
+        self.root.configure(bg="black")
+        Label(self.root, text="Exiting safely...", fg="white", bg="black", font=("Arial", 24)).pack(expand=True)
+        self.root.after(2000, self.root.quit)
+
+    def clear_window(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = SkeepOS(root)
+    root.mainloop()
