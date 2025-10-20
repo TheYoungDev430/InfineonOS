@@ -8,7 +8,7 @@
 
 - **Minimal UI:** Simple start menu with text labels for a sleek look. Also, the hardcoded password is 4
 - **Lightweight:** Codebase streamlined from 360 lines to 196 lines.
-- **Fully Functional:** All core features from the original MercuryOS are preserved.
+  
 - **Python & Tkinter:** Uses Tkinter for GUI, keeping it easy to understand and modify.
 
 ---
